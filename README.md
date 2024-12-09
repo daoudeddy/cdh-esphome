@@ -49,7 +49,7 @@ Add the external component to your ESPHome configuration:
 
    ```yaml
    external_components:
-     - source: github://daoudeddy/cdh-esphome@master
+     - source: github://daoudeddy/cdh-esphome@main
        components: [ heater_uart ]
    ```
 
