@@ -20,7 +20,7 @@ void HeaterUart::loop() {
         uint8_t byte = read();
         if (waiting_for_start_) {
             if (byte == 0x76) {
-                frame[frame_index_++] = byte;
+                frame_[frame_index_++] = byte;
                 waiting_for_start_ = false;
             }
         } else {
