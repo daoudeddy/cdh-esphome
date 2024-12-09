@@ -11,22 +11,37 @@ void HeaterUart::setup() {
 }
 
 void HeaterUart::loop() {
-  const int FRAME_SIZE = 48;
-  while (this->available()) {
-    uint8_t byte = read();
-    if (waiting_for_start_) {
-      if (byte == 0x76) {
-        frame_[frame_index_++] = byte;
-        waiting_for_start_ = false;
-      }
-    } else {
-      frame_[frame_index_++] = byte;
-      if (frame_index_ == FRAME_SIZE) {
-        parse_frame(frame_, FRAME_SIZE);
-        reset_frame();
-      }
+    const int FRAME_SIZE = 48;
+    const int TX_FRAME_END_INDEX = 23;
+    const int RX_FRAME_START_INDEX = 24;
+    const uint8_t END_OF_FRAME_MARKER = 0x00;
+
+    while (available()) {
+        uint8_t byte = read();
+        if (waiting_for_start_) {
+            if (byte == 0x76) {
+                frame[frame_index++] = byte;
+                waiting_for_start_ = false;
+            }
+        } else {
+            frame[frame_index++] = byte;
+            if (frame_index == TX_FRAME_END_INDEX + 1) {
+                if (frame[21] == END_OF_FRAME_MARKER) {
+                    ESP_LOGW("heater_uart", "Invalid Transmit Packet. Resetting frame.");
+                    reset_frame();
+                    return;
+                }
+            }
+            if (frame_index == FRAME_SIZE) {
+                if (frame[45] == END_OF_FRAME_MARKER && frame[RX_FRAME_START_INDEX] == 0x76) {
+                    parse_frame(frame, FRAME_SIZE);
+                } else {
+                    ESP_LOGW("heater_uart", "Invalid Receive Packet or incorrect order. Resetting frame.");
+                }
+                reset_frame();
+            }
+        }
     }
-  }
 }
 
 void HeaterUart::update() {
