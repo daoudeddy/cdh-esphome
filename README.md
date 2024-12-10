@@ -27,21 +27,17 @@ This project is a custom ESPHome component designed to interface with heaters us
 
 ### Installation
 
-1. Clone this repository to your ESPHome configuration directory under `esphome_external_components/heater_uart`.
-
-2. Update your ESPHome configuration to include this component.
+Update your ESPHome configuration to include this component.
 
 ### Example Configuration
 
 ```yaml
 external_components:
-  - source:
-      type: local
-      path: esphome_external_components/heater_uart
+  - source: github://daoudeddy/cdh-esphome@main
+    components: [ heater_uart ]
 
 uart:
   id: heater_uart
-  tx_pin: <your_tx_pin>
   rx_pin: <your_rx_pin>
   baud_rate: 25000
 
@@ -81,7 +77,7 @@ text_sensor:
 
 ### Notes
 
-- Ensure the `tx_pin` and `rx_pin` match your ESP32 or ESP8266 configuration.
+- Ensure the `rx_pin` match your ESP32 or ESP8266 configuration.
 - The baud rate must be set to `25000` to communicate with the heater.
 
 ## Development
