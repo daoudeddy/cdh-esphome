@@ -41,6 +41,9 @@ uart:
   rx_pin: <your_rx_pin>
   baud_rate: 25000
 
+heater_uart:
+  id: heater
+  
 sensor:
   - platform: heater_uart
     current_temperature:
