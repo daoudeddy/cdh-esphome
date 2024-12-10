@@ -5,9 +5,24 @@ namespace esphome {
 namespace heater_uart {
 
 static const char *TAG = "heater_uart";
-        
+
+// Mappings for error and run states
+const std::map<int, std::string> HeaterUart::run_state_map = {
+    {0, "Off / Standby"}, {1, "Start Acknowledge"}, {2, "Glow Plug Pre-heat"},
+    {3, "Failed Ignition - Pause for Retry"}, {4, "Ignited – Heating to Full Temp"},
+    {5, "Running"}, {6, "Stop Acknowledge"}, {7, "Stopping - Post Run Glow Re-heat"},
+    {8, "Cooldown"}
+};
+
+const std::map<int, std::string> HeaterUart::error_code_map = {
+    {0, "No Error"}, {1, "No Error, But Started"}, {2, "Voltage Too Low"},
+    {3, "Voltage Too High"}, {4, "Ignition Plug Failure"}, {5, "Pump Failure – Over Current"},
+    {6, "Too Hot"}, {7, "Motor Failure"}, {8, "Serial Connection Lost"},
+    {9, "Fire Extinguished"}, {10, "Temperature Sensor Failure"}
+};
+
 void HeaterUart::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up Heater UART...");
+    ESP_LOGCONFIG(TAG, "Setting up Heater UART...");
 }
 
 void HeaterUart::loop() {
@@ -45,63 +60,95 @@ void HeaterUart::loop() {
 }
 
 void HeaterUart::update() {
-  if (desired_temp_) desired_temp_->publish_state(desired_temp_value_);
-  if (current_temp_) current_temp_->publish_state(current_temperature_value_);
-  if (fan_speed_) fan_speed_->publish_state(fan_speed_value_);
-  if (supply_voltage_) supply_voltage_->publish_state(measured_voltage_);
-  if (heat_exchanger_temp_) heat_exchanger_temp_->publish_state(heat_exchanger_temp_value_);
-  if (glow_plug_voltage_) glow_plug_voltage_->publish_state(glow_plug_voltage_value_);
-  if (glow_plug_current_) glow_plug_current_->publish_state(glow_plug_current_value_);
-  if (pump_frequency_) pump_frequency_->publish_state(pump_frequency_value_);
-  if (fan_voltage_) fan_voltage_->publish_state(fan_voltage_value_);
-  if (on_off_state_) on_off_state_->publish_state(on_off_value_);
-  if (run_state_text_) run_state_text_->publish_state(run_state_description_);
-  if (error_code_text_)  error_code_text_->publish_state(error_code_description_);
+    for (const auto &sensor_entry : sensors_) {
+        const std::string &key = sensor_entry.first;
+        sensor::Sensor *sensor = sensor_entry.second;
+
+        if (key == "current_temperature")
+            sensor->publish_state(current_temperature_value_);
+        else if (key == "fan_speed")
+            sensor->publish_state(fan_speed_value_);
+        else if (key == "supply_voltage")
+            sensor->publish_state(supply_voltage_value_);
+        else if (key == "heat_exchanger_temp")
+            sensor->publish_state(heat_exchanger_temp_value_);
+        else if (key == "glow_plug_voltage")
+            sensor->publish_state(glow_plug_voltage_value_);
+        else if (key == "glow_plug_current")
+            sensor->publish_state(glow_plug_current_value_);
+        else if (key == "pump_frequency")
+            sensor->publish_state(pump_frequency_value_);
+        else if (key == "fan_voltage")
+            sensor->publish_state(fan_voltage_value_);
+        else if (key == "desired_temperature")
+            sensor->publish_state(desired_temperature_value_);
+    }
+
+    for (const auto &text_entry : text_sensors_) {
+        const std::string &key = text_entry.first;
+        text_sensor::TextSensor *text_sensor = text_entry.second;
+
+        if (key == "run_state")
+            text_sensor->publish_state(run_state_description_);
+        else if (key == "error_code")
+            text_sensor->publish_state(error_code_description_);
+    }
+
+    for (const auto &binary_entry : binary_sensors_) {
+        const std::string &key = binary_entry.first;
+        binary_sensor::BinarySensor *binary_sensor = binary_entry.second;
+
+        if (key == "on_off_state")
+            binary_sensor->publish_state(on_off_value_);
+    }
 }
 
 void HeaterUart::parse_frame(const uint8_t *frame, size_t length) {
-  if (length != 48) {
-    ESP_LOGW("heater_uart", "Invalid frame length: %d bytes (expected 48)", length);
-    return;
-  }
+    if (length != 48) {
+        ESP_LOGW(TAG, "Invalid frame length: %d bytes (expected 48)", length);
+        return;
+    }
 
-  // Split the frame into command and response frames
-  const uint8_t *command_frame = &frame[0];     // First 24 bytes
-  const uint8_t *response_frame = &frame[24];   // Last 24 bytes
+    const uint8_t *command_frame = &frame[0];
+    const uint8_t *response_frame = &frame[24];
 
-  // Parse the command frame
-  current_temperature_value_ = command_frame[3];    // Set temperature (index 3)
-  desired_temp_value_ = command_frame[4];           // Desired temperature (index 4)
+    current_temperature_value_ = command_frame[3];
+    desired_temperature_value_ = command_frame[4];
+    fan_speed_value_ = (response_frame[6] << 8) | response_frame[7];
+    supply_voltage_value_ = ((response_frame[4] << 8) | response_frame[5]) * 0.1;
+    heat_exchanger_temp_value_ = ((response_frame[10] << 8) | response_frame[11]);
+    glow_plug_voltage_value_ = ((response_frame[12] << 8) | response_frame[13]) * 0.1;
+    glow_plug_current_value_ = ((response_frame[14] << 8) | response_frame[15]) * 0.01;
+    pump_frequency_value_ = response_frame[16] * 0.1;
+    fan_voltage_value_ = ((response_frame[8] << 8) | response_frame[9]) * 0.1;
+    run_state_value_ = response_frame[2];
+    on_off_value_ = response_frame[3] == 1;
+    error_code_value_ = response_frame[17];
 
-  // Parse the response frame
-  fan_speed_value_ = (response_frame[6] << 8) | response_frame[7];                      // Fan speed (16-bit value)
-  measured_voltage_ = ((response_frame[4] << 8) | response_frame[5]) * 0.1;             // Supply voltage (index 4-5)
-  heat_exchanger_temp_value_ = ((response_frame[10] << 8) | response_frame[11]);        // Heat exchanger temperature
-  glow_plug_voltage_value_ = ((response_frame[12] << 8) | response_frame[13]) * 0.1;    // Glow plug voltage
-  glow_plug_current_value_ = ((response_frame[14] << 8) | response_frame[15]) * 0.01;   // Glow plug current
-  pump_frequency_value_ = response_frame[16] * 0.1;                                     // Pump frequency
-  error_code_value_ = response_frame[17];                                               // Error code
-  run_state_value_ = response_frame[2];                                                 // Run state
-  on_off_value_ = response_frame[3] == 1;                                               // On/Off state
-  fan_voltage_value_ = ((response_frame[8] << 8) | response_frame[9]) * 0.1;            // Fan voltage
+    run_state_description_ = run_state_map.count(run_state_value_)
+                                 ? run_state_map.at(run_state_value_)
+                                 : "Unknown Run State";
 
-  // Map the run state and error code to human-readable strings
-  if (run_state_map.find(run_state_value_) != run_state_map.end()) {
-    run_state_description_ = run_state_map.at(run_state_value_);
-  } else {
-    run_state_description_ = "Unknown Run State";
-  }
-
-  if (error_code_map.find(error_code_value_) != error_code_map.end()) {
-    error_code_description_ = error_code_map.at(error_code_value_);
-  } else {
-    error_code_description_ = "Unknown Error Code";
-  }
+    error_code_description_ = error_code_map.count(error_code_value_)
+                                  ? error_code_map.at(error_code_value_)
+                                  : "Unknown Error Code";
 }
 
 void HeaterUart::reset_frame() {
-  frame_index_ = 0;
-  waiting_for_start_ = true;
+    frame_index_ = 0;
+    waiting_for_start_ = true;
+}
+
+void HeaterUart::set_sensor(const std::string &key, sensor::Sensor *sensor) {
+    sensors_[key] = sensor;
+}
+
+void HeaterUart::set_text_sensor(const std::string &key, text_sensor::TextSensor *text_sensor) {
+    text_sensors_[key] = text_sensor;
+}
+
+void HeaterUart::set_binary_sensor(const std::string &key, binary_sensor::BinarySensor *binary_sensor) {
+    binary_sensors_[key] = binary_sensor;
 }
 
 }  // namespace heater_uart
