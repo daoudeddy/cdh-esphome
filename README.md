@@ -43,7 +43,8 @@ uart:
 
 heater_uart:
   id: heater
-  
+  update_interval: 30s
+
 sensor:
   - platform: heater_uart
     current_temperature:
