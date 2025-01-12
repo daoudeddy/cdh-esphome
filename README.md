@@ -37,20 +37,19 @@ external_components:
     components: [ heater_uart ]
 
 uart:
-  id: heater_uart
-  rx_pin: <your_rx_pin>
   baud_rate: 25000
+  rx_pin: GPIO14
+  id: uart_bus
+  rx_buffer_size: 512
 
 heater_uart:
+  update_interval: 5s
   id: heater
-  update_interval: 30s
 
 sensor:
   - platform: heater_uart
     current_temperature:
       name: "Current Temperature"
-    desired_temperature:
-      name: "Desired Temperature"
     fan_speed:
       name: "Fan Speed"
     supply_voltage:
@@ -65,11 +64,8 @@ sensor:
       name: "Pump Frequency"
     fan_voltage:
       name: "Fan Voltage"
-
-binary_sensor:
-  - platform: heater_uart
-    on_off_state:
-      name: "On/Off State"
+    desired_temperature:
+      name: "Desired Temperature"
 
 text_sensor:
   - platform: heater_uart
@@ -77,6 +73,12 @@ text_sensor:
       name: "Run State"
     error_code:
       name: "Error Code"
+
+binary_sensor:
+  - platform: heater_uart
+    on_off_state:
+      id: on_off_state
+      name: "On/Off State"
 ```
 
 ### Notes

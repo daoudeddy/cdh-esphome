@@ -126,12 +126,12 @@ void HeaterUart::parse_frame(const uint8_t *frame, size_t length) {
     error_code_value_ = response_frame[17];
 
     run_state_description_ = run_state_map.count(run_state_value_)
-                                 ? run_state_map.at(run_state_value_)
-                                 : "Unknown Run State";
+                                ? run_state_map.at(run_state_value_)
+                                : "Unknown Run State";
 
     error_code_description_ = error_code_map.count(error_code_value_)
-                                  ? error_code_map.at(error_code_value_)
-                                  : "Unknown Error Code";
+                                ? error_code_map.at(error_code_value_)
+                                : "Unknown Error Code";
 }
 
 void HeaterUart::reset_frame() {

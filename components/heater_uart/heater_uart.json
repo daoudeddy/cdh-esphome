@@ -1,11 +1,10 @@
 {
-    "name": "heater_uart",
-    "version": "1.0.0",
-    "dependencies": ["sensor", "text_sensor", "binary_sensor", "uart"],
-    "files": [
-      "heater_uart.h",
-      "heater_uart.cpp",
-      "__init__.py"
-    ]
-  }
-  
+  "name": "heater_uart",
+  "version": "1.0.0",
+  "dependencies": ["sensor", "text_sensor", "binary_sensor", "uart"],
+  "files": [
+    "heater_uart.h",
+    "heater_uart.cpp",
+    "__init__.py"
+  ]
+}
